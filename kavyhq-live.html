@@ -62,9 +62,9 @@ html[data-theme="light"] .theme-toggle .knob svg{color:#f5f5f7;}
 html[data-theme="light"] .theme-toggle .knob .sun{opacity:0;}
 html[data-theme="light"] .theme-toggle .knob .moon{opacity:1;}
 
-#canvasWrap{position:absolute;top:60px;left:0;right:0;bottom:0;overflow:hidden;cursor:grab;background-image:radial-gradient(var(--dot) 1.4px, transparent 1.4px);background-size:26px 26px;background-color:var(--bg);transition:background-color .35s var(--ease);}
+#canvasWrap{position:absolute;top:60px;left:0;right:0;bottom:0;overflow:hidden;cursor:grab;background-color:var(--bg);background-image:radial-gradient(var(--dot) 1.4px, transparent 1.4px);background-repeat:repeat;will-change:background-position, background-size;transition:background-color .35s var(--ease);}
 #canvasWrap.panning{cursor:grabbing;}
-#canvas{position:absolute;top:0;left:0;width:7000px;height:7000px;transform-origin:0 0;will-change:transform;}
+#canvas{position:absolute;top:0;left:0;width:40000px;height:40000px;transform-origin:0 0;will-change:transform;}
 
 #emptyState{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:min(90vw, 460px);}
 #emptyState .icon{width:56px;height:56px;margin:0 auto 22px;color:var(--text-faint);}
@@ -78,6 +78,7 @@ html[data-theme="light"] .theme-toggle .knob .moon{opacity:1;}
 .card-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:grab;background:var(--panel-2);border-bottom:1px solid var(--border-soft);}
 .card-head:active{cursor:grabbing;}
 .card-tag{font-size:11px;font-weight:600;letter-spacing:-0.01em;color:var(--text-dim);display:flex;align-items:center;gap:6px;}
+.card-tag .tag-label{display:none;}
 .card-tag svg{width:12px;height:12px;}
 .card-close{background:none;border:none;color:var(--text-faint);cursor:pointer;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all .15s var(--ease);}
 .card-close:hover{color:#fff;background:var(--danger);}
@@ -310,6 +311,9 @@ html[data-theme="light"] .theme-toggle .knob .moon{opacity:1;}
   function applyTransform(){
     canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
     zoomLevel.textContent = Math.round(scale*100) + '%';
+    const dotSize = 26 * scale;
+    canvasWrap.style.backgroundSize = `${dotSize}px ${dotSize}px`;
+    canvasWrap.style.backgroundPosition = `${panX}px ${panY}px`;
   }
   function updateEmptyState(){
     emptyState.style.display = Object.keys(cards).length > 0 ? 'none' : 'block';
@@ -439,7 +443,7 @@ html[data-theme="light"] .theme-toggle .knob .moon{opacity:1;}
 
     card.innerHTML = `
       <div class="card-head">
-        <span class="card-tag">${ICONS[c.type]}${tagLabel}</span>
+        <span class="card-tag">${ICONS[c.type]}<span class="tag-label">${tagLabel}</span></span>
         <button class="card-close" title="Remove">${ICONS.close}</button>
       </div>
       ${mediaHTMLFor(c.type, c.src)}
@@ -601,7 +605,7 @@ html[data-theme="light"] .theme-toggle .knob .moon{opacity:1;}
       placeholder.className = 'card';
       placeholder.style.left = x+'px'; placeholder.style.top = y+'px'; placeholder.style.width = '290px';
       placeholder.innerHTML = `
-        <div class="card-head"><span class="card-tag">${ICONS[kind]}${kind==='video'?'Clip':'Image'}</span></div>
+        <div class="card-head"><span class="card-tag">${ICONS[kind]}<span class="tag-label">${kind==='video'?'Clip':'Image'}</span></span></div>
         <div class="card-media"><span class="uploading">Uploading…</span></div>
       `;
       canvas.appendChild(placeholder);
