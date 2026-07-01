@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KAVYHQ</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --radius-lg:16px;
+  --radius-md:10px;
+  --radius-sm:7px;
+  --ease:cubic-bezier(0.32,0.72,0,1);
+}
+
+html[data-theme="dark"]{
+  --bg:#000000; --bg-elevated:#1c1c1e; --panel:#0d0d0d; --panel-2:#141416;
+  --border:#242426; --border-soft:#1a1a1c; --text:#f5f5f7; --text-dim:#86868b;
+  --text-faint:#48484a; --accent:#0a84ff; --accent-text:#ffffff; --danger:#ff453a;
+  --shadow-card:0 1px 2px rgba(0,0,0,0.4), 0 12px 32px -8px rgba(0,0,0,0.6);
+  --shadow-float:0 4px 24px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.3);
+  --glass-bg:rgba(20,20,22,0.72); --dot:#1c1c1e;
+}
+html[data-theme="light"]{
+  --bg:#f5f5f7; --bg-elevated:#ffffff; --panel:#ffffff; --panel-2:#fbfbfd;
+  --border:#e2e2e5; --border-soft:#ececee; --text:#1d1d1f; --text-dim:#6e6e73;
+  --text-faint:#aeaeb2; --accent:#0071e3; --accent-text:#ffffff; --danger:#ff3b30;
+  --shadow-card:0 1px 2px rgba(0,0,0,0.04), 0 12px 32px -8px rgba(0,0,0,0.1);
+  --shadow-float:0 4px 24px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06);
+  --glass-bg:rgba(255,255,255,0.78); --dot:#e5e5e7;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Helvetica,Arial,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased;transition:background .35s var(--ease), color .35s var(--ease);}
+
+#topbar{position:fixed;top:0;left:0;right:0;height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;background:var(--glass-bg);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--border-soft);z-index:100;transition:background .35s var(--ease), border-color .35s var(--ease);}
+.brand{display:flex;align-items:baseline;gap:2px;font-size:19px;font-weight:700;letter-spacing:-0.02em;}
+.brand .dim{color:var(--text-dim);font-weight:600;}
+#topbar .actions{display:flex;gap:8px;align-items:center;}
+
+.status{font-size:11px;font-weight:600;color:var(--text-dim);display:flex;align-items:center;gap:6px;padding-right:6px;cursor:pointer;}
+.status .pulse{width:6px;height:6px;border-radius:50%;background:var(--text-faint);transition:background .3s;}
+.status .pulse.live{background:#30d158;box-shadow:0 0 6px #30d158;}
+.status .pulse.off{background:var(--danger);}
+
+.btn{background:var(--bg-elevated);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:500;padding:8px 15px;border-radius:980px;cursor:pointer;transition:all .18s var(--ease);font-family:inherit;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-float);}
+.btn:active{transform:translateY(0);}
+.btn.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent);font-weight:600;}
+.btn.primary:hover{filter:brightness(1.08);}
+.btn svg{width:14px;height:14px;flex-shrink:0;}
+.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none;}
+
+#fileInputVideo,#fileInputImage{display:none;}
+
+.theme-toggle{position:relative;width:52px;height:30px;border-radius:30px;background:var(--bg-elevated);border:1px solid var(--border);cursor:pointer;padding:2px;transition:background .35s var(--ease), border-color .35s var(--ease);flex-shrink:0;}
+.theme-toggle .knob{width:24px;height:24px;border-radius:50%;background:linear-gradient(180deg,#fff,#e8e8ea);box-shadow:0 1px 3px rgba(0,0,0,0.3), 0 1px 1px rgba(0,0,0,0.15);transform:translateX(0);transition:transform .38s var(--ease);display:flex;align-items:center;justify-content:center;position:relative;}
+html[data-theme="light"] .theme-toggle .knob{transform:translateX(22px);background:linear-gradient(180deg,#2c2c2e,#1c1c1e);}
+.theme-toggle .knob svg{width:13px;height:13px;color:#f5b400;transition:opacity .2s;}
+html[data-theme="light"] .theme-toggle .knob svg{color:#f5f5f7;}
+.theme-toggle .knob .moon{position:absolute;opacity:0;color:#f5f5f7;}
+html[data-theme="light"] .theme-toggle .knob .sun{opacity:0;}
+html[data-theme="light"] .theme-toggle .knob .moon{opacity:1;}
+
+#canvasWrap{position:absolute;top:60px;left:0;right:0;bottom:0;overflow:hidden;cursor:grab;background-image:radial-gradient(var(--dot) 1.4px, transparent 1.4px);background-size:26px 26px;background-color:var(--bg);transition:background-color .35s var(--ease);}
+#canvasWrap.panning{cursor:grabbing;}
+#canvas{position:absolute;top:0;left:0;width:7000px;height:7000px;transform-origin:0 0;will-change:transform;}
+
+#emptyState{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:min(90vw, 460px);}
+#emptyState .icon{width:56px;height:56px;margin:0 auto 22px;color:var(--text-faint);}
+#emptyState h1{font-size:26px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;}
+#emptyState p{font-size:14px;color:var(--text-dim);line-height:1.6;font-weight:400;}
+#emptyState .accent{color:var(--accent);font-weight:600;}
+
+.card{position:absolute;width:290px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-card);transition:border-color .18s var(--ease), box-shadow .18s var(--ease), background .35s var(--ease);}
+.card.dragging{cursor:grabbing;z-index:60;box-shadow:0 8px 40px -6px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);}
+.card:hover{border-color:var(--text-faint);}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:grab;background:var(--panel-2);border-bottom:1px solid var(--border-soft);}
+.card-head:active{cursor:grabbing;}
+.card-tag{font-size:11px;font-weight:600;letter-spacing:-0.01em;color:var(--text-dim);display:flex;align-items:center;gap:6px;}
+.card-tag svg{width:12px;height:12px;}
+.card-close{background:none;border:none;color:var(--text-faint);cursor:pointer;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all .15s var(--ease);}
+.card-close:hover{color:#fff;background:var(--danger);}
+.card-close svg{width:11px;height:11px;}
+.card-media{width:100%;aspect-ratio:16/10;background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.card-media video, .card-media iframe, .card-media img{width:100%;height:100%;display:block;border:none;object-fit:cover;}
+.card-media .uploading{font-size:11px;color:var(--text-dim);font-weight:600;letter-spacing:0.02em;}
+.card-note{width:100%;background:transparent;border:none;color:var(--text);font-size:13px;font-family:inherit;padding:11px 13px 13px;resize:none;line-height:1.5;min-height:40px;font-weight:400;}
+.card-note::placeholder{color:var(--text-faint);}
+.card-note:focus{outline:none;}
+.resize-handle{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:5;}
+.resize-handle::after{content:'';position:absolute;right:6px;bottom:6px;width:7px;height:7px;border-right:1.5px solid var(--text-faint);border-bottom:1.5px solid var(--text-faint);border-radius:0 0 2px 0;}
+.card.note-only .card-note{min-height:130px;font-size:14.5px;}
+
+#linkModal,#setupModal{position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:200;}
+#linkModal.open,#setupModal.open{display:flex;animation:fadeIn .2s var(--ease);}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.modal-box{width:420px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-lg);padding:26px;box-shadow:var(--shadow-float);animation:modalIn .25s var(--ease);}
+@keyframes modalIn{from{opacity:0;transform:scale(0.96) translateY(6px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.modal-box h2{font-size:18px;font-weight:700;letter-spacing:-0.01em;margin-bottom:6px;}
+.modal-box p.hint{font-size:13px;color:var(--text-dim);margin-bottom:18px;line-height:1.5;}
+.modal-box label{font-size:11px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:6px;}
+.modal-box input{width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:13px 15px;font-size:14px;border-radius:var(--radius-md);font-family:inherit;margin-bottom:14px;}
+.modal-box input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px rgba(10,132,255,0.15);}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
+
+#zoomControls{position:fixed;bottom:22px;right:22px;display:flex;align-items:center;gap:2px;background:var(--glass-bg);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--border-soft);border-radius:980px;padding:5px;z-index:90;box-shadow:var(--shadow-float);}
+#zoomControls button{width:32px;height:32px;background:transparent;border:none;color:var(--text);cursor:pointer;font-size:17px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+#zoomControls button:hover{background:var(--bg-elevated);}
+#zoomLevel{font-size:12px;font-weight:500;color:var(--text-dim);width:44px;text-align:center;}
+
+#dropOverlay{position:fixed;inset:0;background:color-mix(in srgb, var(--accent) 6%, transparent);border:2px dashed var(--accent);display:none;align-items:center;justify-content:center;z-index:150;pointer-events:none;}
+#dropOverlay.active{display:flex;}
+#dropOverlay span{font-size:14px;font-weight:600;color:var(--accent);background:var(--bg-elevated);padding:14px 26px;border:1px solid var(--accent);border-radius:980px;box-shadow:var(--shadow-float);}
+
+#toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);background:var(--bg-elevated);border:1px solid var(--border);padding:10px 18px;border-radius:980px;font-size:12.5px;font-weight:500;color:var(--text);z-index:300;display:none;box-shadow:var(--shadow-float);}
+#toast.show{display:block;}
+#toast.error{border-color:var(--danger);color:var(--danger);}
+
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+@media (max-width:640px){ .btn span.label{display:none;} .btn{padding:8px 10px;} }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand">KAVY<span class="dim">HQ</span></div>
+  <div class="actions">
+    <span class="status" id="statusPill"><span class="pulse" id="pulse"></span><span id="statusText">Connecting</span></span>
+    <button class="btn" id="addNoteBtn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      <span class="label">Note</span>
+    </button>
+    <button class="btn" id="addLinkBtn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <span class="label">Link</span>
+    </button>
+    <button class="btn" id="addImageBtn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+      <span class="label">Image</span>
+    </button>
+    <button class="btn primary" id="addVideoBtn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
+      <span class="label">Video</span>
+    </button>
+    <input type="file" id="fileInputVideo" accept="video/*" multiple>
+    <input type="file" id="fileInputImage" accept="image/*" multiple>
+    <div class="theme-toggle" id="themeToggle" title="Toggle theme">
+      <div class="knob">
+        <svg class="sun" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="canvasWrap">
+  <div id="canvas">
+    <div id="emptyState">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect x="3" y="3" width="18" height="18" rx="4"/>
+        <circle cx="9" cy="9" r="1.6"/>
+        <path d="m21 15-5-5L5 21"/>
+      </svg>
+      <h1>Your board is empty.</h1>
+      <p>Drop video or image files anywhere, or paste a <span class="accent">YouTube / Vimeo</span> link. Everything syncs live between you and your team.</p>
+    </div>
+  </div>
+</div>
+
+<div id="dropOverlay"><span>Drop to add</span></div>
+<div id="toast"></div>
+
+<div id="setupModal">
+  <div class="modal-box">
+    <h2>Connect this board</h2>
+    <p class="hint">Enter your Supabase project once — this is saved in this browser only. Everyone opening this URL needs to enter the same two values on their own device, one time.</p>
+    <label>Project URL</label>
+    <input type="text" id="setupUrl" placeholder="https://xxxxx.supabase.co">
+    <label>Publishable / anon key</label>
+    <input type="text" id="setupKey" placeholder="sb_publishable_...">
+    <div class="modal-actions">
+      <button class="btn primary" id="setupSave">Connect board</button>
+    </div>
+  </div>
+</div>
+
+<div id="linkModal">
+  <div class="modal-box">
+    <h2>Paste a video link</h2>
+    <p class="hint">YouTube or Vimeo URLs play inline on the board.</p>
+    <input type="text" id="linkInput" placeholder="https://youtube.com/watch?v=...">
+    <div class="modal-actions">
+      <button class="btn" id="linkCancel">Cancel</button>
+      <button class="btn primary" id="linkAdd">Add to board</button>
+    </div>
+  </div>
+</div>
+
+<div id="zoomControls">
+  <button id="zoomOut">−</button>
+  <span id="zoomLevel">100%</span>
+  <button id="zoomIn">+</button>
+</div>
+
+<script>
+(function(){
+  const html = document.documentElement;
+  const THEME_KEY = 'kavyhq_theme';
+  const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
+  html.setAttribute('data-theme', savedTheme);
+  document.getElementById('themeToggle').addEventListener('click', ()=>{
+    const cur = html.getAttribute('data-theme');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem(THEME_KEY, next);
+  });
+
+  const canvas = document.getElementById('canvas');
+  const canvasWrap = document.getElementById('canvasWrap');
+  const emptyState = document.getElementById('emptyState');
+  const fileInputVideo = document.getElementById('fileInputVideo');
+  const fileInputImage = document.getElementById('fileInputImage');
+  const dropOverlay = document.getElementById('dropOverlay');
+  const zoomLevel = document.getElementById('zoomLevel');
+  const pulse = document.getElementById('pulse');
+  const statusText = document.getElementById('statusText');
+  const toast = document.getElementById('toast');
+
+  const CRED_KEY = 'kavyhq_supabase_creds';
+  const BUCKET_VIDEO = 'videos';
+  const BUCKET_IMAGE = 'images';
+  const TABLE = 'cards';
+
+  let scale = 1;
+  let panX = 240, panY = 220;
+  let cards = {};
+  let cardEls = {};
+  let sb = null;
+  let channel = null;
+  let suppressBroadcast = false;
+
+  function showToast(msg, isError){
+    toast.textContent = msg;
+    toast.className = 'show' + (isError ? ' error' : '');
+    setTimeout(()=> toast.className = '', 2600);
+  }
+
+  function setConnected(ok){
+    pulse.className = 'pulse ' + (ok ? 'live' : 'off');
+    statusText.textContent = ok ? 'Live' : 'Offline';
+    document.getElementById('addNoteBtn').disabled = !ok;
+    document.getElementById('addLinkBtn').disabled = !ok;
+    document.getElementById('addImageBtn').disabled = !ok;
+    document.getElementById('addVideoBtn').disabled = !ok;
+  }
+
+  function applyTransform(){
+    canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+    zoomLevel.textContent = Math.round(scale*100) + '%';
+  }
+  function updateEmptyState(){
+    emptyState.style.display = Object.keys(cards).length > 0 ? 'none' : 'block';
+  }
+
+  const setupModal = document.getElementById('setupModal');
+  function openSetup(){
+    setupModal.classList.add('open');
+    const saved = JSON.parse(localStorage.getItem(CRED_KEY) || '{}');
+    document.getElementById('setupUrl').value = saved.url || '';
+    document.getElementById('setupKey').value = saved.key || '';
+  }
+  document.getElementById('setupSave').onclick = ()=>{
+    const url = document.getElementById('setupUrl').value.trim();
+    const key = document.getElementById('setupKey').value.trim();
+    if(!url || !key){ showToast('Both fields required', true); return; }
+    localStorage.setItem(CRED_KEY, JSON.stringify({url,key}));
+    setupModal.classList.remove('open');
+    initSupabase(url, key);
+  };
+
+  function initSupabase(url, key){
+    try{ sb = window.supabase.createClient(url, key); }
+    catch(e){ showToast('Could not connect — check credentials', true); setConnected(false); return; }
+    setConnected(false);
+    statusText.textContent = 'Connecting';
+    loadInitial();
+    subscribeRealtime();
+  }
+
+  async function loadInitial(){
+    const {data, error} = await sb.from(TABLE).select('*').order('created_at', {ascending:true});
+    if(error){ showToast('Sync error: ' + error.message, true); setConnected(false); return; }
+    setConnected(true);
+    suppressBroadcast = true;
+    for(const row of data){ renderCard(rowToCard(row), true); }
+    suppressBroadcast = false;
+    updateEmptyState();
+  }
+
+  function subscribeRealtime(){
+    if(channel) sb.removeChannel(channel);
+    channel = sb.channel('kavyhq-cards-sync')
+      .on('postgres_changes', {event:'INSERT', schema:'public', table:TABLE}, (payload)=>{
+        const c = rowToCard(payload.new);
+        if(cards[c.id]) return;
+        suppressBroadcast = true; renderCard(c, true); suppressBroadcast = false;
+        updateEmptyState();
+      })
+      .on('postgres_changes', {event:'UPDATE', schema:'public', table:TABLE}, (payload)=>{
+        updateCardFromRemote(rowToCard(payload.new));
+      })
+      .on('postgres_changes', {event:'DELETE', schema:'public', table:TABLE}, (payload)=>{
+        removeCardFromRemote(payload.old.id);
+      })
+      .subscribe((status)=>{
+        if(status === 'SUBSCRIBED') setConnected(true);
+        if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setConnected(false);
+      });
+  }
+
+  function rowToCard(row){
+    return {id:row.id, x:row.x, y:row.y, w:row.w, type:row.type, note:row.note||'', src:row.src||''};
+  }
+
+  const pending = {};
+  function pushUpdate(id, fields){
+    if(suppressBroadcast) return;
+    clearTimeout(pending[id]);
+    pending[id] = setTimeout(async ()=>{
+      const {error} = await sb.from(TABLE).update(fields).eq('id', id);
+      if(error) showToast('Save failed: ' + error.message, true);
+    }, 250);
+  }
+  async function insertRow(card){
+    const {error} = await sb.from(TABLE).insert({
+      id: card.id, x: card.x, y: card.y, w: card.w, type: card.type, note: card.note, src: card.src
+    });
+    if(error) showToast('Add failed: ' + error.message, true);
+  }
+  async function deleteRow(id){
+    const {error} = await sb.from(TABLE).delete().eq('id', id);
+    if(error) showToast('Delete failed: ' + error.message, true);
+  }
+
+  function uid(){ return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  function screenCenterToWorld(){
+    const rect = canvasWrap.getBoundingClientRect();
+    const cx = rect.width/2, cy = rect.height/2;
+    return { x: (cx - panX)/scale - 145, y: (cy - panY)/scale - 100 };
+  }
+
+  function youtubeEmbed(url){
+    let id=null; let m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{6,})/);
+    if(m) id = m[1]; return id ? `https://www.youtube.com/embed/${id}` : null;
+  }
+  function vimeoEmbed(url){
+    let m = url.match(/vimeo\.com\/(\d+)/); return m ? `https://player.vimeo.com/video/${m[1]}` : null;
+  }
+
+  const ICONS = {
+    video:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>',
+    link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+    image:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>',
+    note:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>',
+    close:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>'
+  };
+
+  function mediaHTMLFor(type, src){
+    if(type === 'video') return `<div class="card-media"><video src="${src}" controls preload="metadata"></video></div>`;
+    if(type === 'image') return `<div class="card-media"><img src="${src}" alt=""></div>`;
+    if(type === 'link'){
+      const embed = youtubeEmbed(src) || vimeoEmbed(src) || src;
+      return `<div class="card-media"><iframe src="${embed}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>`;
+    }
+    return '';
+  }
+
+  function renderCard(c, fromRemote){
+    cards[c.id] = c;
+    const card = document.createElement('div');
+    card.className = 'card' + (c.type==='note' ? ' note-only' : '');
+    card.style.left = c.x+'px'; card.style.top = c.y+'px'; card.style.width = c.w+'px';
+    card.dataset.id = c.id;
+    const tagLabel = c.type === 'video' ? 'Clip' : c.type === 'link' ? 'Link' : c.type === 'image' ? 'Image' : 'Note';
+
+    card.innerHTML = `
+      <div class="card-head">
+        <span class="card-tag">${ICONS[c.type]}${tagLabel}</span>
+        <button class="card-close" title="Remove">${ICONS.close}</button>
+      </div>
+      ${mediaHTMLFor(c.type, c.src)}
+      <textarea class="card-note" placeholder="Add a note...">${c.note||''}</textarea>
+      <div class="resize-handle"></div>
+    `;
+    canvas.appendChild(card);
+    cardEls[c.id] = card;
+
+    const head = card.querySelector('.card-head');
+    let dragging=false, dragStart={x:0,y:0}, origin={x:0,y:0};
+    head.addEventListener('mousedown',(e)=>{
+      e.stopPropagation(); dragging=true; card.classList.add('dragging');
+      dragStart={x:e.clientX,y:e.clientY}; origin={x:cards[c.id].x,y:cards[c.id].y}; card.style.zIndex=999;
+    });
+    window.addEventListener('mousemove',(e)=>{
+      if(!dragging) return;
+      const dx=(e.clientX-dragStart.x)/scale, dy=(e.clientY-dragStart.y)/scale;
+      cards[c.id].x=origin.x+dx; cards[c.id].y=origin.y+dy;
+      card.style.left=cards[c.id].x+'px'; card.style.top=cards[c.id].y+'px';
+    });
+    window.addEventListener('mouseup',()=>{
+      if(dragging){ dragging=false; card.classList.remove('dragging'); pushUpdate(c.id,{x:cards[c.id].x,y:cards[c.id].y}); }
+    });
+
+    const handle = card.querySelector('.resize-handle');
+    let resizing=false, rStart=0, rOrigin=0;
+    handle.addEventListener('mousedown',(e)=>{ e.stopPropagation(); resizing=true; rStart=e.clientX; rOrigin=cards[c.id].w; });
+    window.addEventListener('mousemove',(e)=>{
+      if(!resizing) return;
+      const dw=(e.clientX-rStart)/scale; const nw=Math.max(200,Math.min(700,rOrigin+dw));
+      cards[c.id].w=nw; card.style.width=nw+'px';
+    });
+    window.addEventListener('mouseup',()=>{ if(resizing){ resizing=false; pushUpdate(c.id,{w:cards[c.id].w}); } });
+
+    const noteEl = card.querySelector('.card-note');
+    noteEl.addEventListener('mousedown', e=>e.stopPropagation());
+    noteEl.addEventListener('input', ()=>{ cards[c.id].note = noteEl.value; pushUpdate(c.id,{note:noteEl.value}); });
+
+    card.querySelector('.card-close').addEventListener('click', async (e)=>{
+      e.stopPropagation(); card.remove(); delete cards[c.id]; delete cardEls[c.id];
+      updateEmptyState(); await deleteRow(c.id);
+    });
+
+    if(!fromRemote) insertRow(c);
+    updateEmptyState();
+  }
+
+  function updateCardFromRemote(c){
+    const existing = cards[c.id]; if(!existing) return;
+    const el = cardEls[c.id]; if(!el) return;
+    cards[c.id] = {...existing, ...c};
+    el.style.left = c.x+'px'; el.style.top = c.y+'px'; el.style.width = c.w+'px';
+    const noteEl = el.querySelector('.card-note');
+    if(document.activeElement !== noteEl) noteEl.value = c.note || '';
+  }
+  function removeCardFromRemote(id){
+    if(cardEls[id]){ cardEls[id].remove(); delete cardEls[id]; }
+    delete cards[id]; updateEmptyState();
+  }
+
+  let isPanning=false, panStart={x:0,y:0}, panOrigin={x:0,y:0};
+  canvasWrap.addEventListener('mousedown',(e)=>{
+    if(e.target!==canvasWrap && e.target!==canvas && e.target.id!=='emptyState') return;
+    isPanning=true; canvasWrap.classList.add('panning');
+    panStart={x:e.clientX,y:e.clientY}; panOrigin={x:panX,y:panY};
+  });
+  window.addEventListener('mousemove',(e)=>{
+    if(!isPanning) return;
+    panX=panOrigin.x+(e.clientX-panStart.x); panY=panOrigin.y+(e.clientY-panStart.y);
+    applyTransform();
+  });
+  window.addEventListener('mouseup',()=>{ isPanning=false; canvasWrap.classList.remove('panning'); });
+
+  canvasWrap.addEventListener('wheel',(e)=>{
+    e.preventDefault();
+    if(e.ctrlKey||e.metaKey){
+      const delta=-e.deltaY*0.01; const newScale=Math.min(2.5,Math.max(0.25,scale+delta));
+      const rect=canvasWrap.getBoundingClientRect();
+      const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+      const wx=(mx-panX)/scale, wy=(my-panY)/scale;
+      scale=newScale; panX=mx-wx*scale; panY=my-wy*scale;
+    } else { panX-=e.deltaX; panY-=e.deltaY; }
+    applyTransform();
+  },{passive:false});
+
+  document.getElementById('zoomIn').onclick=()=>{ scale=Math.min(2.5,scale+0.15); applyTransform(); };
+  document.getElementById('zoomOut').onclick=()=>{ scale=Math.max(0.25,scale-0.15); applyTransform(); };
+
+  document.getElementById('addVideoBtn').onclick=()=> fileInputVideo.click();
+  fileInputVideo.addEventListener('change',(e)=>{ handleFiles(e.target.files,'video'); fileInputVideo.value=''; });
+  document.getElementById('addImageBtn').onclick=()=> fileInputImage.click();
+  fileInputImage.addEventListener('change',(e)=>{ handleFiles(e.target.files,'image'); fileInputImage.value=''; });
+
+  async function handleFiles(fileList, kind){
+    const base = screenCenterToWorld();
+    const bucket = kind === 'video' ? BUCKET_VIDEO : BUCKET_IMAGE;
+    const expectedPrefix = kind === 'video' ? 'video/' : 'image/';
+    let i=0;
+    for(const file of fileList){
+      if(!file.type.startsWith(expectedPrefix)) continue;
+      const id = uid();
+      const x = base.x + i*40, y = base.y + i*40;
+      i++;
+
+      const placeholder = document.createElement('div');
+      placeholder.className = 'card';
+      placeholder.style.left = x+'px'; placeholder.style.top = y+'px'; placeholder.style.width = '290px';
+      placeholder.innerHTML = `
+        <div class="card-head"><span class="card-tag">${ICONS[kind]}${kind==='video'?'Clip':'Image'}</span></div>
+        <div class="card-media"><span class="uploading">Uploading…</span></div>
+      `;
+      canvas.appendChild(placeholder);
+      updateEmptyState();
+
+      const ext = file.name.split('.').pop();
+      const path = `${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+
+      const {error: upErr} = await sb.storage.from(bucket).upload(path, file, {cacheControl:'3600', upsert:false});
+      placeholder.remove();
+
+      if(upErr){ showToast('Upload failed: ' + upErr.message, true); continue; }
+
+      const {data:pub} = sb.storage.from(bucket).getPublicUrl(path);
+      const card = {id, x, y, w:290, type:kind, note:'', src: pub.publicUrl};
+      renderCard(card, false);
+    }
+  }
+
+  ['dragenter','dragover'].forEach(evt=>{
+    window.addEventListener(evt,(e)=>{
+      e.preventDefault();
+      if(e.dataTransfer && [...e.dataTransfer.types].includes('Files')) dropOverlay.classList.add('active');
+    });
+  });
+  ['dragleave','drop'].forEach(evt=>{
+    window.addEventListener(evt,(e)=>{ if(evt==='dragleave' && e.relatedTarget) return; dropOverlay.classList.remove('active'); });
+  });
+  window.addEventListener('drop',(e)=>{
+    e.preventDefault(); dropOverlay.classList.remove('active');
+    if(!sb){ showToast('Connect the board first', true); return; }
+    if(e.dataTransfer.files && e.dataTransfer.files.length){
+      const videos=[...e.dataTransfer.files].filter(f=>f.type.startsWith('video/'));
+      const images=[...e.dataTransfer.files].filter(f=>f.type.startsWith('image/'));
+      if(videos.length) handleFiles(videos,'video');
+      if(images.length) handleFiles(images,'image');
+    }
+  });
+
+  const linkModal = document.getElementById('linkModal');
+  const linkInput = document.getElementById('linkInput');
+  document.getElementById('addLinkBtn').onclick=()=>{ linkModal.classList.add('open'); linkInput.value=''; linkInput.style.borderColor=''; linkInput.focus(); };
+  document.getElementById('linkCancel').onclick=()=> linkModal.classList.remove('open');
+  linkModal.addEventListener('mousedown',(e)=>{ if(e.target===linkModal) linkModal.classList.remove('open'); });
+
+  function submitLink(){
+    const url = linkInput.value.trim(); if(!url) return;
+    const embed = youtubeEmbed(url) || vimeoEmbed(url);
+    if(!embed){ linkInput.style.borderColor='var(--danger)'; return; }
+    const base = screenCenterToWorld();
+    const card = {id:uid(), x:base.x, y:base.y, w:290, type:'link', note:'', src:url};
+    renderCard(card, false);
+    linkModal.classList.remove('open');
+  }
+  document.getElementById('linkAdd').onclick = submitLink;
+  linkInput.addEventListener('keydown', e=>{ if(e.key==='Enter') submitLink(); });
+
+  document.getElementById('addNoteBtn').onclick=()=>{
+    const base = screenCenterToWorld();
+    const card = {id:uid(), x:base.x, y:base.y, w:290, type:'note', note:'', src:''};
+    renderCard(card, false);
+  };
+
+  applyTransform();
+  const saved = JSON.parse(localStorage.getItem(CRED_KEY) || '{}');
+  if(saved.url && saved.key) initSupabase(saved.url, saved.key);
+  else openSetup();
+
+  document.getElementById('statusPill').addEventListener('click', openSetup);
+})();
+</script>
+
+</body>
+</html>
